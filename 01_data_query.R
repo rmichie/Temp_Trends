@@ -62,7 +62,7 @@ for (i in 1:length(HUClist)) {
                           siteType = input$siteTypeLASAR)
   odbcCloseAll()
   
-  if (is.data.frame(lasarData)) {lasarData$HUC <- HUClist}
+  if (is.data.frame(lasarData)) {lasarData$HUC <- HUClist[i]}
   
   if (!is.data.frame(nwisData)) {nwisData <- NULL}
   df.all <- combine(W=wqpData,L=lasarData,N=nwisData)
