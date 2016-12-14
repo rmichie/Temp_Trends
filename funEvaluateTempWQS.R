@@ -36,6 +36,7 @@ EvaluateTempWQS <- function(sdadm_df) {
   # 
   require(plyr)
   require(chron)
+  require(stringr)
   #test case: 
   #sdadm_df$spwn_dates <- ifelse(sdadm$id %in% c(36837,36838, 36839, 36874),"August 15-May 15",ifelse(sdadm$id %in% c(36849,36850,36854,36857),"January 1-June 15","No spawning"))
   #sdadm_df$ben_use_des <- ifelse(sdadm$id %in% c(36837,36838, 36839, 36874),"Core Cold Water Habitat",ifelse(sdadm$id %in% c(36849,36850,36854,36857),"Salmon and Trout Rearing and Migration","Redband and Lanhontan Cutthroat Trout"))
@@ -47,7 +48,8 @@ EvaluateTempWQS <- function(sdadm_df) {
   } else {
     spd <- unique(sdadm_df[,c('id','spwn_dates','ben_use_des')]) 
   }
-  spd_list <- strsplit(spd$spwn_dates, split = "-")
+  spd_list <- strsplit(str_replace_all(spd$spwn_dates, " - ", "-"), split = "-")
+  #spd_list <- strsplit(spd$spwn_dates, split = "-")
   spd_chron <- lapply(spd_list, function(x) {as.chron(x, format = "%B %d")})
   spd_months <- lapply(spd_chron, months)
   spd_days <- lapply(spd_chron, days)

@@ -4,8 +4,8 @@ library(lubridate)
 library(dplyr)
 library(reshape2)
 
-fun_dir <- 'F:/WorkSpace/Quantifying_Conservation_2014/SouthernWillamette/TempTrends'
-data_query_dir <- 'F:/WorkSpace/Quantifying_Conservation_2014/SouthernWillamette/TempTrends/data_query_NWIS'
+fun_dir <- 'C:/WorkSpace/GitHub/Temp_Trends'
+data_query_dir <- 'F:/WorkSpace/MidCoast/Temp_Data/data_query/Siuslaw'
 
 setwd(fun_dir)
 
@@ -46,7 +46,7 @@ for (i in 1:length(fnames)) {
   
   # First determine number of hours collected within each day
   qc.hr <- as.tbl(tmp) %>%
-    group_by(HUC, Station_ID, month, year, day) %>%
+    group_by(HUC, Station_ID, Station_Description, month, year, day) %>%
     summarise(n = length(unique(hour)))
   qc.hr <- as.data.frame(qc.hr)
   
@@ -67,9 +67,12 @@ for (i in 1:length(fnames)) {
   # No more than one day for each monthly period without observations
 
   qc.dy <- as.data.frame(as.tbl(qc.hr.p) %>% 
-                           group_by(HUC, Station_ID, year, month) %>% 
+                           group_by(HUC, Station_ID, Station_Description, year, month) %>% 
                            summarise(n = n()))
-  qc.dy$n_threshold <- ifelse(qc.dy$month %in% c(7,8,10), 30, 29)
+  #qc.dy$n_threshold <- ifelse(qc.dy$month %in% c(7,8,10), 30, 29)
+  
+  # No more than five days for each monthly period without observations - RM
+  qc.dy$n_threshold <- ifelse(qc.dy$month %in% c(7,8,10), 24, 23)
   qc.dy$result <- ifelse(qc.dy$n >= qc.dy$n_threshold,'pass','fail')
   
   # just redoing this so threshold is clear
@@ -89,7 +92,7 @@ for (i in 1:length(fnames)) {
   # for each monthly period
   
   qc.yr <- as.data.frame(as.tbl(qc.dy.p) %>% 
-                           group_by(HUC, Station_ID, month) %>% 
+                           group_by(HUC, Station_ID, Station_Description, month) %>% 
                            summarise(n = n()))
   qc.yr$n_threshold  <- '>= 8 years'
   qc.yr$result <- ifelse(qc.yr$n >= 8,'pass','fail')

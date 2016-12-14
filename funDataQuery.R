@@ -89,6 +89,8 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
     L <- cbind(L, data.frame(Detect = rep(NA, nrow(L)), 
                              Comment = rep(NA, nrow(L)), 
                              StatusIdentifier = rep(NA, nrow(L))))
+    
+
   }
   
   if (!is.null(E)) {
@@ -196,7 +198,7 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) 
   return(myData)
 }
 
-lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate, DQL, siteType) {
+lasarQuery <- function(stationlist, inParms, startDate, endDate, DQL, siteType) {
   library(RODBC)
   
   options(stringsAsFactors = FALSE)
@@ -220,13 +222,8 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate, DQ
   #### Establish connection to database ####
   channel <- odbcConnect('LASAR2_GIS')
   
-  #### Define Geographic Area using myArea from 01_DataQueryUI.R ####
-  if (is.null(planArea)) {
-    myHUCs <- paste(HUClist, collapse = "','")
-  } else {
-    myHUCs <- paste(HUClist[HUClist$PlanName == planArea,'HUC8'],collapse="','")
-  }
-  
+  myStations <- paste(stationlist,collapse="','")
+
   ##### Set parameters ####
   #Get paramters
   AllParms <- sqlFetch(channel,'XLU_LASAR_PARAMETERS')
@@ -234,10 +231,12 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate, DQ
   qryParms <- c()
   #Expand bacteria to include fecal and enterococcus
   if (any(inParms == 'Temperature')) {
-    qryParms <- c(qryParms, unique(AllParms[grep('[Tt]emperature',AllParms$PARAMETER_NM),'PARAMETER_NM']))
+    qryParms <- c(qryParms, unique(AllParms[grep('[Tt]emperature',AllParms$PARAMETER_NM),
+                                            'PARAMETER_NM']))
   }
   if(any(inParms == 'Bacteria')) {
-   qryParms <-  c(qryParms, unique(AllParms[grep('E. [Cc]oli|Fecal [Cc]oliform|[Ee]nterococcus',AllParms$PARAMETER_NM),'PARAMETER_NM']))
+   qryParms <-  c(qryParms, unique(AllParms[grep('E. [Cc]oli|Fecal [Cc]oliform|[Ee]nterococcus',
+                                                 AllParms$PARAMETER_NM),'PARAMETER_NM']))
   }
   if (any(inParms == 'pH')) {
     qryParms <- c(qryParms, 'pH')
@@ -285,7 +284,7 @@ lasarQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate, DQ
                SAMPLE_MATRIX sm on r.SAMPLE_MATRIX = sm.SAMPLE_MATRIX_KEY LEFT JOIN
                PARAMETER_RESULT pr on r.PARAMETER_RESULT = pr.PARAMETER_RESULT_KEY LEFT JOIN
                ORGANIZATION o on r.SAMPLING_ORGANIZATION = o.ORGANIZATION_KEY
-               WHERE a.AREA_ABBREVIATION in ('", myHUCs, "') AND
+               WHERE r.STATION in ('", myStations, "') AND
                r.SAMPLE_DATE_TIME >= '", startDate, "' AND
                r.SAMPLE_DATE_TIME <= '", endDate, "' AND
                st.STATUS in (", DQL, ") AND
