@@ -5,7 +5,7 @@ library(dplyr)
 library(reshape2)
 
 fun_dir <- 'C:/WorkSpace/GitHub/Temp_Trends'
-data_query_dir <- 'F:/WorkSpace/MidCoast/Temp_Data/data_query/Siuslaw'
+data_query_dir <- 'F:/WorkSpace/MidCoast/Temp_Data/data_query'
 
 setwd(fun_dir)
 
@@ -33,6 +33,12 @@ for (i in 1:length(fnames)) {
   tmp <- df.all
   
   tmp$date <- as.POSIXct(strptime(tmp$Sampled, format = "%Y-%m-%d %H:%M:%OS"))
+  
+  # sometimes there are datetimes at daylight savings transistions that do not exist and get NAs when coverting to POSIXct.
+  # e.g. 2004-04-04 02:00:00 is really 2004-04-04 03:00:00
+  # For now I just remove the NAs but to fix requires a more complicated procedure. TODO
+  tmp <- tmp[!is.na(tmp$date),]
+  
   tmp$month <- month(tmp$date)
   tmp$year <- year(tmp$date)
   tmp$day <- day(tmp$date)
