@@ -1,10 +1,11 @@
-Calculate.sdadm <- function(df, result_column_name, station_column_name, datetime_column_name, datetime_format) {
+Calculate.sdadm <- function(df, result_column_name, units_column_name, station_column_name, datetime_column_name, datetime_format) {
   # Description:
   # Calculates seven day average daily maximum
   #
   # This function takes 4 arguments:
   #  df                   = A data frame containing at minimum the columns representing a Station Identifier, Numeric results and a datetime
   #  result_column_name   = A character string specifying the name of the result column in df
+  #  units_column_name    = A character string specifying the units (F or C) of the result in df
   #  station_column_name  = A character string specifying the name of the station column in df
   #  datetime_column_name = A character string specifying the name of the datetime column in df. datetime column should be in format "%m/%d/%Y %H:%M:%S"
   #  datetime_format      = A character string specifying the format of the datetime column. See the format argument of strptime for details
@@ -30,17 +31,18 @@ Calculate.sdadm <- function(df, result_column_name, station_column_name, datetim
   require(reshape)
   require(zoo)
   
-  tdata <- df[,c(station_column_name, datetime_column_name, result_column_name)]
+  tdata <- df[,c(station_column_name, datetime_column_name, result_column_name, units_column_name)]
   
   ## RENAME
   colnames(tdata)[1] <- "id"
   colnames(tdata)[2] <- "datetime"
   colnames(tdata)[3] <- "t"
+  colnames(tdata)[4] <- "unit"
   
-  ## F -> C  Not a perfect solution but not sure how to deal with it otherwise.
-  #Ft <- "Temperature  (?F)" # Using the unit text doesn't seem to work on a pc (works on mac). I think the degree symbol is the problem.
+  ## convert F -> C
   tdata$t <- as.numeric(tdata$t)
-  tdata$t_c <- ifelse(tdata$t > 36, round(((tdata$t-32)*5/9),1),tdata$t)
+  tdata$t_c <- ifelse(grepl('F', tdata$unit), round(((tdata$t-32)*5/9),1),tdata$t)
+
   
   ## Create a vector of daily dates for grouping
   if (is.POSIXct(tdata$datetime)) {
