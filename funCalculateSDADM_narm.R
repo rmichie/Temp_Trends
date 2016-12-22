@@ -27,9 +27,12 @@ Calculate.sdadm <- function(df, result_column_name, units_column_name, station_c
   # SDADM: class numeric representing the calculated seven day average
   
   require(lubridate)
-  require(chron)
   require(reshape)
   require(zoo)
+  
+  ## TEST
+  #tdata <- df.all[,c("Station_ID","date","Result","Unit")]
+  #datetime_format <-"%Y-%m-%d %H:%M:%OS"
   
   tdata <- df[,c(station_column_name, datetime_column_name, result_column_name, units_column_name)]
   
@@ -42,6 +45,7 @@ Calculate.sdadm <- function(df, result_column_name, units_column_name, station_c
   ## convert F -> C
   tdata$t <- as.numeric(tdata$t)
   tdata$t_c <- ifelse(grepl('F', tdata$unit), round(((tdata$t-32)*5/9),1),tdata$t)
+  tdata$unit <- NULL
 
   
   ## Create a vector of daily dates for grouping
@@ -87,7 +91,7 @@ Calculate.sdadm <- function(df, result_column_name, units_column_name, station_c
   dummy$t <- as.numeric(dummy$t)
   
   tdata <-rbind(tdata,dummy)
-  rm(dummy)
+  rm(dummy,date99,datetime99,id99,t_c99,t99)
   #############################################################################################
   
   ## Calculate daily maximums by station
@@ -105,7 +109,7 @@ Calculate.sdadm <- function(df, result_column_name, units_column_name, station_c
   if (all(is.na(sdadm))) {
     return("Insufficient data to calculate a single 7DADM")
   } else {
-    datevector <-as.chron(rownames(tmax))
+    datevector <-as.Date(rownames(tmax))
     sdadm <-data.frame(sdadm)
     sdadm <- cbind(datevector,sdadm)
     colnames(sdadm)[1] <- "date"
@@ -114,7 +118,6 @@ Calculate.sdadm <- function(df, result_column_name, units_column_name, station_c
     sdadm.melt$id <- gsub("X","",sdadm.melt$id,fixed=TRUE)
     sdadm.melt$id <- gsub(".","-",sdadm.melt$id,fixed=TRUE)
     #colnames(sdadm.melt)[2] <- station_column_name
-    sdadm.melt$date <- as.Date(sdadm.melt$date)
     return(sdadm.melt)
   }
 }
