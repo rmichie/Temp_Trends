@@ -35,12 +35,8 @@ EvaluateTempWQS <- function(sdadm_df) {
   # An object of class data frame with columns:
   # 
   require(plyr)
-  require(chron)
   require(stringr)
-  #test case: 
-  #sdadm_df$spwn_dates <- ifelse(sdadm$id %in% c(36837,36838, 36839, 36874),"August 15-May 15",ifelse(sdadm$id %in% c(36849,36850,36854,36857),"January 1-June 15","No spawning"))
-  #sdadm_df$ben_use_des <- ifelse(sdadm$id %in% c(36837,36838, 36839, 36874),"Core Cold Water Habitat",ifelse(sdadm$id %in% c(36849,36850,36854,36857),"Salmon and Trout Rearing and Migration","Redband and Lanhontan Cutthroat Trout"))
-  
+
   ## Build the spawning reference data frame based on the spawning dates and benefiicial use specified
   stations <- unique(sdadm_df$id)
   if ('ZDADM' %in% names(sdadm_df)) {
@@ -49,10 +45,11 @@ EvaluateTempWQS <- function(sdadm_df) {
     spd <- unique(sdadm_df[,c('id','spwn_dates','ben_use_des')]) 
   }
   spd_list <- strsplit(str_replace_all(spd$spwn_dates, " - ", "-"), split = "-")
-  #spd_list <- strsplit(spd$spwn_dates, split = "-")
-  spd_chron <- lapply(spd_list, function(x) {as.chron(x, format = "%B %d")})
-  spd_months <- lapply(spd_chron, months)
-  spd_days <- lapply(spd_chron, days)
+
+  spd_date <- lapply(spd_list, function(x) {as.Date(x, format = "%B %d")})
+  spd_months <- lapply(spd_date, month)
+  spd_days <- lapply(spd_date, day)
+
   spd_months_num <- lapply(spd_months, as.numeric)
   spd_days_num <- lapply(spd_days, as.numeric)
   SSTART_MONTH <- unlist(lapply(spd_months_num, function(x) x[1]))
@@ -73,7 +70,7 @@ EvaluateTempWQS <- function(sdadm_df) {
     ) 
   } 
   
-  rm(spd,spd_list,spd_chron,spd_months,spd_days,
+  rm(spd,spd_list,spd_date,spd_months,spd_days,
      spd_months_num,spd_days_num,SSTART_MONTH,
      SSTART_DAY,SEND_MONTH,SEND_DAY)
   
@@ -81,27 +78,40 @@ EvaluateTempWQS <- function(sdadm_df) {
   sdadm_df$sdata <- match(sdadm_df$id,sdata$id)
   
   ## finds the current date, and spawning start/end date and formats as a numeric in the form mm.dd
-  sdadm_df$cdate <- as.numeric(months(as.chron(sdadm_df$date))) + (as.numeric(days(as.chron(sdadm_df$date))) * .01)
+  sdadm_df$cdate <- as.numeric(month(sdadm_df$date)) + (as.numeric(day(sdadm_df$date)) * .01)
   sdadm_df$sstr <- as.numeric(sdata$SSTART_MONTH[sdadm_df$sdata]) + (as.numeric(sdata$SSTART_DAY[sdadm_df$sdata]) *.01)
   sdadm_df$send <- as.numeric(sdata$SEND_MONTH[sdadm_df$sdata]) + (as.numeric(sdata$SEND_DAY[sdadm_df$sdata]) *.01)
   sdadm_df$bioc <- as.numeric(sdata$ZDADM[sdadm_df$sdata])
   
+  ## Add 6 days to account for 7 day averageing period when comparisions to criteria are not made.
+  ## See Temperature IMD pg21
+  sdadm_df$sstrNA <- sdadm_df$sstr + 0.06
+  sdadm_df$sendNA <- sdadm_df$send + 0.06
+  
   ## checks to see if there is an over winter spawning period
   sdadm_df$winter <- ifelse(sdadm_df$send < sdadm_df$sstr, TRUE, FALSE)
   
-  ## looks up the summer bio criterion and spawning start end/date and returns TRUE/FALSE if current date is in summer or spawning period
-  sdadm_df$bioc <- ifelse(is.na(sdadm_df$winter), sdadm_df$bioc, ifelse(
-    sdadm_df$winter == TRUE,
-    ifelse(sdadm_df$sstr <= sdadm_df$cdate | sdadm_df$send >= sdadm_df$cdate, 13, sdadm_df$bioc),
-    ifelse(sdadm_df$sstr <= sdadm_df$cdate & sdadm_df$send >= sdadm_df$cdate, 13, sdadm_df$bioc)))
+  ## looks up the summer bio criterion and spawning start/end date and 
+  ## returns TRUE/FALSE if current date is in summer or spawning period
+  ## First 6 days at transition are made FALSE to account for 7day averaging period
+  ## comparisions to criteria are not made for those days. See Temperature IMD pg21
+  sdadm_df$bioc <- ifelse(is.na(sdadm_df$winter), 
+                          sdadm_df$bioc, 
+                          ifelse(sdadm_df$winter == TRUE,
+                                 ifelse(sdadm_df$sstr <= sdadm_df$cdate | sdadm_df$send >= sdadm_df$cdate, 
+                                        13, sdadm_df$bioc),
+                                 ifelse(sdadm_df$sstr <= sdadm_df$cdate & sdadm_df$send >= sdadm_df$cdate,
+                                        13, sdadm_df$bioc)))
   
-  sdadm_df$summer <- ifelse(sdadm_df$bioc == 13, FALSE, TRUE)
-  sdadm_df$spawn <- ifelse(sdadm_df$bioc == 13, TRUE, FALSE)
+  sdadm_df$summer <- ifelse(sdadm_df$bioc == 13 & sdadm_df$sendNA <= sdadm_df$cdate, FALSE, TRUE)
+  sdadm_df$spawn <- ifelse(sdadm_df$bioc == 13 & sdadm_df$sstrNA <= sdadm_df$cdate, TRUE, FALSE)
+  sdadm_df$sdadm <- ifelse(sdadm_df$summer | sdadm_df$spawn,sdadm_df$sdadm, NA)
   
   sdadm_df <- sdadm_df[!is.na(sdadm$sdadm),]
   
-  ## Calculate total 7DADM obersvations and # of 7DADM observations that exceed the summer spawning critera in those time periods; and 
-  ## number of 7DADM observations that exceed 16 and 18 over the whole time period (not just in the stated periods)
+  ## Calculate total 7DADM oberservations and # of 7DADM observations that exceed the summer spawning 
+  ## critera in those time periods; and number of 7DADM observations that exceed 16 and 18 over 
+  ## the whole time period (not just in the stated periods)
   sdadm_df$exceedsummer <- ifelse(sdadm_df$sdadm >= sdadm_df$bioc & sdadm_df$summer == TRUE, 1, 0)
   sdadm_df$exceedspawn <- ifelse(sdadm_df$sdadm >= sdadm_df$bioc & sdadm_df$spawn == TRUE, 1, 0)
   sdadm_df$daystot <-ifelse(!is.na(sdadm_df$sdadm), 1, 0)
