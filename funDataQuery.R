@@ -119,7 +119,7 @@ combine <- function(E = NULL, L = NULL, W = NULL, N = NULL) {
    return(df.all)
 }
 
-elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) {
+elementQuery <- function(planArea = NULL, stationList, inParms, startDate, endDate) {
   library(RODBC)
   
   options(stringsAsFactors = FALSE)
@@ -142,27 +142,11 @@ elementQuery <- function(planArea = NULL, HUClist, inParms, startDate, endDate) 
 #     input <- data.frame(select = rep(planArea, 3), parms = inParms, dates = c(startDate, endDate, startDate))
 #     parms <- read.csv('AgWQMA_DataRetrieval/data/WQP_Table3040_Names.csv', stringsAsFactors = FALSE)
   
-  #### Define Geographic Area using myArea from 01_DataQueryUI.R ####
-  if (is.null(planArea)) {
-    myHUCs <- HUClist
-  } else {
-    myHUCs <- HUClist[HUClist$PlanName == planArea,'HUC8']
-  }
-
-  las <- odbcConnect('LASAR2_GIS')
+  #### Open connection to element ####
   elm <- odbcConnect('ELEMENT')
   
-  st <- sqlQuery(las, 'SELECT s.STATION_KEY, 
-                                    m.DATUM, 
-                       xa.AREA_ABBREVIATION 
-                       FROM STATION s 
-                            LEFT JOIN XLU_MAP_DATUM m on s.DATUM = m.DATUM_KEY 
-                            LEFT JOIN STATION_AREA sa on s.STATION_KEY = sa.STATION 
-                            LEFT JOIN XLU_AREA xa on sa.XLU_AREA = xa.AREA_KEY')
-  st <- st[st$AREA_ABBREVIATION %in% myHUCs,]
-  st <- st[!duplicated(st$STATION_KEY),]
-  
-  myStations <- paste(st$STATION_KEY,collapse="','")
+  #### Make the stations SQL query friendly ####
+  myStations <- paste(stationList,collapse="','")
   
   #### Specify element names for inParms ####
   qryParms <- c()
